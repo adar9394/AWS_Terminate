@@ -13,9 +13,9 @@ do
 	hh=${t:12:2}
 	
 	dd=${t:9:2}
-	echo $dd
+	
 	((hhh=$h-$hh))
-	echo $hhh
+	
 	if [ ${t:6:2} -lt $m ]; then
 		aws ec2 terminate-instances --instance-ids $di
 		echo "The following instance was terminated: "
