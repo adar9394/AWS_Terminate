@@ -1,35 +1,20 @@
 #!/bin/bash
-time="$(aws ec2 describe-instances --filters "Name=instance-state-name,Values=running"| jq .Reservations[].Instances[].LaunchTime)"
-aws ec2 describe-instances --filters "Name=instance-state-name,Values=running" | jq .Reservations[].Instances[].InstanceId > id.txt
-sed -i 's/"//g' id.txt
-x=1
-for i in "${!time[@]}" 
+HOUR=12
+CSVFILE="instances.csv"
+
+aws ec2 describe-instances | jq -r '.Reservations[].Instances[] |  .InstanceId + "," + .LaunchTime' > $CSVFILE
+
+for x in $(cat $CSVFILE)
 do
-	t="${time[$i]}"
-	di="$(sed -n "${x}p" id.txt)"
-	m="$(date +%m)"
-	d="$(date +%d)"
-	h="$(date +%H)"
-	hh=${t:12:2}
-	
-	dd=${t:9:2}
-	
-	((hhh=$h-$hh))
-	
-	if [ ${t:6:2} -lt $m ]; then
-		aws ec2 terminate-instances --instance-ids $di
-		echo "The following instance was terminated: "
-		echo $di
-	elif [ $dd -lt $d ]; then
-		aws ec2 terminate-instances --instance-ids $di
-		echo "The following instance was terminated: "
-		echo $di
-	elif [ $hhh -gt 11 ]; then
-		aws ec2 terminate-instances --instance-ids $di
-		echo "The following instance was terminated: "
-		echo $di
-	fi
-	((x=x+1))
+  lt=$(echo $x | cut -f2 -d',')
+  id=$(echo $x | cut -f1 -d',')
+
+  ltu=$(date -d $lt "+%s") #current unix time in seconds
+  runtime=$(( $(date "+%s")-$ltu )) #the time the instance run
+  if [ $(($runtime/3600)) -gt $HOUR ]; then 
+    echo "$id was running since $lt ...needs to be terminated"
+    aws ec2 terminate-instances --instance-ids $id
+  else
+    echo "$id is safe"
+  fi
 done
-
-
